@@ -1,144 +1,64 @@
+/*
+ * Ex 5 - Semáforo de 3 fases com millis()
+ *
+ * Fases: VERDE (4 s) → AMARELO (1,5 s) → VERMELHO (4 s) → VERDE ...
+ *
+ * Em vez de delay(), o programa guarda em que fase está e quando ela
+ * começou. A cada volta do loop verifica se o tempo da fase acabou e,
+ * se sim, passa para a próxima (máquina de estados).
+ *
+ * Circuito (Tinkercad):
+ *   pino 10 → 220 Ω → LED vermelho → GND
+ *   pino 9  → 220 Ω → LED amarelo  → GND
+ *   pino 8  → 220 Ω → LED verde    → GND
+ */
+
 #include <Arduino.h>
-#include <WiFi.h>
 
-#include <ezTime.h>
+const int LED_VERMELHO = 10;
+const int LED_AMARELO = 9;
+const int LED_VERDE = 8;
 
-// Prototipo das funcoes
-void conexaoWifi();
-void reconexaoWifi();
+// Fases
+const int VERDE = 0;
+const int AMARELO = 1;
+const int VERMELHO = 2;
 
-const char *SSID = "SENAI EDUCACIONAL";
-const char *SENHA = "info@134";
+// Duração de cada fase (ms), na mesma ordem das fases acima
+const unsigned long DURACAO[3] = {4000, 1500, 4000};
 
-const unsigned long tempoConexao = 10000;
-const unsigned long tempoReconexao = 5000;
+int faseAtual = VERDE;
+unsigned long inicioFase = 0;
 
-Timezone sp;
-String mes;
-String diadasemana;
-String diasquefaltam;
+void aplicarFase(int fase);  // protótipo (necessário em .cpp)
 
-void setup()
-{
-  Serial.begin(115200);
+void setup() {
+  pinMode(LED_VERMELHO, OUTPUT);
+  pinMode(LED_AMARELO, OUTPUT);
+  pinMode(LED_VERDE, OUTPUT);
+  Serial.begin(9600);
 
-  // Conexao Wifi
-  conexaoWifi();
-
-  waitForSync();
-
-  // sp.setLocation("America/Sao_Paulo");
-
-
-
-  Serial.println(sp.dateTime());
-  // Serial.println(sp.dateTime("d/m/Y H:i:s"));
-  // if (sp.dateTime("m") == "11")
-  // {
-  //   mes = "Novembro";
-  // }
-
-  // ARRAY                              0            1               2
-const String meses [] = {"janeiro","fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"};
-
-mes = meses [sp.month() -1];
-
-//  // if (sp.dateTime("l") == "Friday")
-//   {
-//     diadasemana = " sexta feira";
-//   }
-
-// ARRAY                              0            1               2
-const String diasDaSemana [] = {"domingo","segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sabado",};
-
-diadasemana = diasDaSemana [sp.weekday() -1];
-
-
-
-
-  
-    diasquefaltam = 365 - sp.dayOfYear();
-  
-  
-  Serial.print(sp.dateTime("\\H\\o\\j\\e \\e d \\d\\e "));
-  Serial.print(mes);
-  Serial.print(sp.dateTime(" \\d\\e Y,"));
-  Serial.print(diadasemana);
-  Serial.print (" e faltam ");
-  Serial.print(diasquefaltam);
-  Serial.print(sp.dateTime(" \\d\\i\\a\\s \\p\\a\\r\\a \\o \\a\\n\\o \\n\\o\\v\\o "));
-
-  // caracteres uteis
-  // Y -> ano completo (2026)
-  // y -> ano com dois digitos (26)
-  // m -> mes (01-12)
-  // d -> dia (01-31)
-  // H -> hora (00-23)
-  // i -> minuto (00-59)
-  // s -> segundo (00-59)
-  // l -> dia da semana por extenso
-  // D -> dia da semana abreviado
-  // F -> nome completo do mes (november)
-  // M -> nome abreviado do mes (nov)
-  // a/A -> am/pm
-  // T -> Sigla do fuso (BRT)
-
-  // Serial.println(sp.minute());
-  // Serial.println(sp.second());
-  // Serial.println(sp.hour());
-  // Serial.println(sp.hourFormat12());
-  // Serial.println(sp.day());
-  // Serial.println(sp.dayOfYear());
-  // Serial.println(sp.month());
-  // Serial.println(sp.year());
-  // Serial.println(sp.isAM());
-  // Serial.println(sp.isPM());
+  inicioFase = millis();
+  aplicarFase(faseAtual);
 }
 
-void loop()
-{
-  reconexaoWifi();
+// Liga só o LED da fase indicada
+void aplicarFase(int fase) {
+  digitalWrite(LED_VERDE, fase == VERDE);
+  digitalWrite(LED_AMARELO, fase == AMARELO);
+  digitalWrite(LED_VERMELHO, fase == VERMELHO);
+
+  if (fase == VERDE) Serial.println("Fase: VERDE");
+  else if (fase == AMARELO) Serial.println("Fase: AMARELO");
+  else Serial.println("Fase: VERMELHO");
 }
 
-void conexaoWifi()
-{
-  Serial.printf("Conectando ao wifi: %s", SSID);
-
-  WiFi.begin(SSID, SENHA);
-
-  unsigned long tempoWifi = millis();
-
-  while (WiFi.status() != WL_CONNECTED && millis() - tempoWifi < tempoConexao)
-  {
-    Serial.print(".");
-    delay(500);
+void loop() {
+  if (millis() - inicioFase >= DURACAO[faseAtual]) {
+    faseAtual = (faseAtual + 1) % 3;  // próxima fase (volta ao 0 depois do 2)
+    inicioFase = millis();
+    aplicarFase(faseAtual);
   }
 
-  if (WiFi.status() == WL_CONNECTED)
-  {
-    Serial.println("Wifi conectado com sucesso!");
-    Serial.print("Endereço IP: ");
-    Serial.println(WiFi.localIP());
-  }
-
-  else
-  {
-    Serial.println("Falha ao se conectar");
-  }
-}
-
-void reconexaoWifi()
-{
-  unsigned long tempoAtual = millis();
-  unsigned long tempoUltimaConexao = 0;
-
-  if (tempoAtual - tempoUltimaConexao > tempoReconexao)
-  {
-    if (WiFi.status() != WL_CONNECTED)
-    {
-      Serial.println("Conexao Wifi perdida");
-      conexaoWifi();
-    }
-    tempoUltimaConexao = tempoAtual;
-  }
+  // Aqui o Arduino está livre para ler botões, sensores etc.
 }
